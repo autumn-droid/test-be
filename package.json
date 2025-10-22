@@ -26,13 +26,15 @@
     "@nestjs/mongoose": "^11.0.3",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
+    "@types/uuid": "^10.0.0",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "mongoose": "^8.19.2",
     "multer": "^2.0.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

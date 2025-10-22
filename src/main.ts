@@ -2,20 +2,28 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
   // Log MongoDB connection status
   console.log('Connecting to MongoDB Atlas...');
   console.log('MongoDB URI configured for:', 'datedi-cluster.cbqhp8m.mongodb.net');
 
+  // Serve static files from storage directory
+  app.useStaticAssets(join(__dirname, '..', 'storage', 'images'), {
+    prefix: '/storage/images/',
+  });
+
   const config = new DocumentBuilder()
     .setTitle('Theme Management API')
-    .setDescription('API for managing mobile app themes with version control')
+    .setDescription('API for managing mobile app themes with version control and image uploads')
     .setVersion('1.0')
     .addTag('themes')
+    .addTag('images')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
