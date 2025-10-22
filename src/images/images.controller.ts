@@ -6,9 +6,10 @@ import {
   Param,
   Res,
   UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -20,6 +21,7 @@ import {
 import type { Response } from 'express';
 import { ImagesService } from './images.service';
 import { UploadImageDto } from './dto/upload-image.dto';
+import { UploadMultipleResponseDto } from './dto/upload-multiple-response.dto';
 
 @ApiTags('images')
 @Controller('images')
@@ -27,7 +29,7 @@ export class ImagesController {
   constructor(private readonly imagesService: ImagesService) {}
 
   @Post('upload')
-  @ApiOperation({ summary: 'Upload an image' })
+  @ApiOperation({ summary: 'Upload a single image' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -51,6 +53,36 @@ export class ImagesController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File): Promise<UploadImageDto> {
     return this.imagesService.uploadImage(file);
+  }
+
+  @Post('upload-multiple')
+  @ApiOperation({ summary: 'Upload multiple images' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Multiple image files (JPEG, PNG, GIF, WebP)',
+        },
+      },
+      required: ['files'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Images uploaded successfully',
+    type: UploadMultipleResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid file format or size' })
+  @UseInterceptors(FilesInterceptor('files', 10)) // Allow up to 10 files
+  async uploadMultipleImages(@UploadedFiles() files: Express.Multer.File[]): Promise<UploadMultipleResponseDto> {
+    return this.imagesService.uploadMultipleImages(files);
   }
 
   @Get(':filename')

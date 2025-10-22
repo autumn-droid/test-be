@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { UploadImageDto } from './dto/upload-image.dto';
+import { UploadMultipleResponseDto } from './dto/upload-multiple-response.dto';
 
 @Injectable()
 export class ImagesService {
@@ -63,6 +64,34 @@ export class ImagesService {
     } catch (error) {
       throw new BadRequestException('Failed to save image file');
     }
+  }
+
+  async uploadMultipleImages(files: Express.Multer.File[]): Promise<UploadMultipleResponseDto> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+
+    const uploadedImages: UploadImageDto[] = [];
+    const failedUploads: { filename: string; error: string }[] = [];
+
+    // Process each file
+    for (const file of files) {
+      try {
+        const result = await this.uploadImage(file);
+        uploadedImages.push(result);
+      } catch (error) {
+        failedUploads.push({
+          filename: file.originalname || 'unknown',
+          error: error.message || 'Upload failed',
+        });
+      }
+    }
+
+    return {
+      uploadedImages,
+      totalUploaded: uploadedImages.length,
+      failedUploads,
+    };
   }
 
   async getImagePath(filename: string): Promise<string> {
