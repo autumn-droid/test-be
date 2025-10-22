@@ -3,11 +3,19 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
+
+  // Enable validation pipes globally
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }));
 
   // Log MongoDB connection status
   console.log('Connecting to MongoDB Atlas...');
@@ -24,6 +32,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag('themes')
     .addTag('images')
+    .addTag('auth')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
