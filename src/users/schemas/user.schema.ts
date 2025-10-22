@@ -17,6 +17,9 @@ export class User {
   @Prop({ required: true, minlength: 6 })
   fullname: string;
 
+  @Prop({ required: false })
+  avatarUrl?: string;
+
   createdAt?: Date;
   updatedAt?: Date;
 }

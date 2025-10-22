@@ -1,9 +1,12 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 @Injectable()
 export class UsersService {
@@ -47,5 +50,49 @@ export class UsersService {
 
   async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(password, hashedPassword);
+  }
+
+  async updateProfile(userId: string, updateData: UpdateProfileDto): Promise<UserDocument> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Update only provided fields
+    if (updateData.fullname !== undefined) {
+      user.fullname = updateData.fullname;
+    }
+
+    return user.save();
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string): Promise<UserDocument> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Delete old avatar if exists
+    if (user.avatarUrl) {
+      await this.deleteOldAvatar(user.avatarUrl);
+    }
+
+    // Update avatar URL
+    user.avatarUrl = avatarUrl;
+    return user.save();
+  }
+
+  private async deleteOldAvatar(avatarUrl: string): Promise<void> {
+    try {
+      // Extract filename from URL path (e.g., "/images/filename.jpg" -> "filename.jpg")
+      const filename = avatarUrl.split('/').pop();
+      if (filename) {
+        const filePath = path.join(process.cwd(), 'storage', 'images', filename);
+        await fs.unlink(filePath);
+      }
+    } catch (error) {
+      // Ignore errors when deleting old avatar (file might not exist)
+      console.warn(`Failed to delete old avatar: ${error.message}`);
+    }
   }
 }

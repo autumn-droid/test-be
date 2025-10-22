@@ -23,6 +23,7 @@ export class AuthService {
       nationCode: user.nationCode,
       phoneNumber: user.phoneNumber,
       fullname: user.fullname,
+      avatarUrl: user.avatarUrl,
       createdAt: user.createdAt || new Date(),
       updatedAt: user.updatedAt || new Date(),
     };
@@ -54,6 +55,7 @@ export class AuthService {
       nationCode: user.nationCode,
       phoneNumber: user.phoneNumber,
       fullname: user.fullname,
+      avatarUrl: user.avatarUrl,
       createdAt: user.createdAt || new Date(),
       updatedAt: user.updatedAt || new Date(),
     };

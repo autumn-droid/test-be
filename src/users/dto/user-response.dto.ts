@@ -26,6 +26,13 @@ export class UserResponseDto {
   fullname: string;
 
   @ApiProperty({
+    description: 'User avatar image URL',
+    example: '/images/1761104953641-7b3b9693.jpg',
+    required: false,
+  })
+  avatarUrl?: string;
+
+  @ApiProperty({
     description: 'Account creation timestamp',
     example: '2024-01-15T10:30:00.000Z',
   })
