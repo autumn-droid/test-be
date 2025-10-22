@@ -27,13 +27,15 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('Theme Management API')
-    .setDescription('API for managing mobile app themes with version control and image uploads')
+    .setTitle('Datedi Dating App API')
+    .setDescription('API for managing dating app with dates, join requests, themes, and image uploads')
     .setVersion('1.0')
     .addTag('themes')
     .addTag('images')
     .addTag('auth')
     .addTag('users')
+    .addTag('dates')
+    .addTag('join-requests')
     .addBearerAuth(
       {
         type: 'http',

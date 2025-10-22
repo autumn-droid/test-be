@@ -7,6 +7,7 @@ import { ThemesModule } from './themes/themes.module';
 import { ImagesModule } from './images/images.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { DatesModule } from './dates/dates.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuthModule } from './auth/auth.module';
     ImagesModule,
     UsersModule,
     AuthModule,
+    DatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
