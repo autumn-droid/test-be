@@ -45,6 +45,25 @@ export class DateEntity {
   })
   status: 'open' | 'matched';
 
+  @Prop({ 
+    type: {
+      amount: { type: Number, required: true },
+      currency: { type: String, required: true, enum: ['VND', 'USD', 'EUR', 'JPY', 'GBP', 'CNY'] }
+    },
+    required: true 
+  })
+  budgetAmount: {
+    amount: number;
+    currency: string;
+  };
+
+  @Prop({ 
+    required: true, 
+    min: 0, 
+    max: 100 
+  })
+  costSplitPercentage: number;
+
   createdAt?: Date;
   updatedAt?: Date;
 }

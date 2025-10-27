@@ -27,6 +27,15 @@ export class DateResponseDto {
   @ApiProperty({ description: 'Number of pending join requests' })
   pendingRequestsCount: number;
 
+  @ApiProperty()
+  budgetAmount: {
+    amount: number;
+    currency: string;
+  };
+
+  @ApiProperty({ minimum: 0, maximum: 100 })
+  costSplitPercentage: number;
+
   @ApiProperty({ description: 'Creation timestamp' })
   createdAt: string;
 

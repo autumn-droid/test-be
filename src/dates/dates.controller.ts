@@ -10,10 +10,12 @@ import {
   Request, 
   Query, 
   ParseIntPipe,
-  DefaultValuePipe 
+  DefaultValuePipe,
+  Logger
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtGuard } from '../auth/guards/optional-jwt.guard';
 import { DatesService } from './dates.service';
 import { CreateDateDto } from './dto/create-date.dto';
 import { UpdateDateDto } from './dto/update-date.dto';
@@ -23,6 +25,8 @@ import { JoinRequestsService } from './join-requests.service';
 @ApiTags('dates')
 @Controller('dates')
 export class DatesController {
+  private readonly logger = new Logger(DatesController.name);
+
   constructor(
     private readonly datesService: DatesService,
     private readonly joinRequestsService: JoinRequestsService,
@@ -51,9 +55,11 @@ export class DatesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all public dates with pagination' })
+  @UseGuards(OptionalJwtGuard)
+  @ApiOperation({ summary: 'Get all public dates with pagination (excludes authenticated user\'s dates if token provided)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiBearerAuth('JWT-auth')
   @ApiResponse({
     status: 200,
     description: 'List of dates retrieved successfully',
@@ -68,10 +74,27 @@ export class DatesController {
     },
   })
   async findAll(
+    @Request() req,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    return this.datesService.findAll(page, limit);
+    // Log request details
+    this.logger.log(`GET /dates - Request received - has user: ${!!req.user}`);
+    
+    if (req.user) {
+      this.logger.log(`GET /dates - User object: ${JSON.stringify(req.user)}`);
+    }
+    
+    // Extract userId if authenticated, otherwise undefined
+    const userId = req.user ? (req.user?._id ?? req.user?.id ?? req.user?.userId)?.toString() : undefined;
+    
+    this.logger.log(`GET /dates - Extracted userId: ${userId || 'undefined (no authentication)'}`);
+    
+    const result = await this.datesService.findAll(page, limit, userId);
+    
+    this.logger.log(`GET /dates - Returning ${result.dates.length} dates (total: ${result.total})`);
+    
+    return result;
   }
 
   @Get('my-requests')

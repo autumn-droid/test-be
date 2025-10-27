@@ -1,7 +1,8 @@
-import { IsString, IsDateString, IsArray, ValidateNested, MinLength, IsNotEmpty } from 'class-validator';
+import { IsString, IsDateString, IsArray, ValidateNested, MinLength, IsNotEmpty, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { LocationDto } from './location.dto';
+import { BudgetDto } from './budget.dto';
 
 export class CreateDateDto {
   @ApiProperty({ description: 'Start date and time for the date' })
@@ -22,4 +23,15 @@ export class CreateDateDto {
   @ValidateNested({ each: true })
   @Type(() => LocationDto)
   locations: LocationDto[];
+
+  @ApiProperty({ type: BudgetDto })
+  @ValidateNested()
+  @Type(() => BudgetDto)
+  budgetAmount: BudgetDto;
+
+  @ApiProperty({ minimum: 0, maximum: 100 })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  costSplitPercentage: number;
 }

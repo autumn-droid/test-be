@@ -1,9 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -49,5 +51,26 @@ export class AuthController {
   })
   async login(@Body() loginUserDto: LoginUserDto): Promise<AuthResponseDto> {
     return this.authService.login(loginUserDto);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Token refreshed successfully',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid refresh token',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error - invalid input data',
+  })
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
+    return this.authService.refreshToken(refreshTokenDto);
   }
 }

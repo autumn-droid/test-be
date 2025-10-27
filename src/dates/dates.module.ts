@@ -6,6 +6,7 @@ import { DatesService } from './dates.service';
 import { JoinRequestsService } from './join-requests.service';
 import { DateEntity, DateSchema } from './schemas/date.schema';
 import { JoinRequest, JoinRequestSchema } from './schemas/join-request.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { JoinRequest, JoinRequestSchema } from './schemas/join-request.schema';
       { name: DateEntity.name, schema: DateSchema },
       { name: JoinRequest.name, schema: JoinRequestSchema },
     ]),
+    AuthModule,
   ],
   controllers: [DatesController, JoinRequestsController],
   providers: [DatesService, JoinRequestsService],

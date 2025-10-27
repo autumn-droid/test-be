@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { DateEntity, DateDocument } from './schemas/date.schema';
 import { JoinRequest, JoinRequestDocument } from './schemas/join-request.schema';
 import { CreateDateDto } from './dto/create-date.dto';
@@ -9,6 +9,8 @@ import { DateResponseDto } from './dto/date-response.dto';
 
 @Injectable()
 export class DatesService {
+  private readonly logger = new Logger(DatesService.name);
+
   constructor(
     @InjectModel(DateEntity.name) private dateModel: Model<DateDocument>,
     @InjectModel(JoinRequest.name) private joinRequestModel: Model<JoinRequestDocument>,
@@ -44,19 +46,42 @@ export class DatesService {
     return this.formatDateResponse(savedDate);
   }
 
-  async findAll(page: number = 1, limit: number = 10): Promise<{ dates: DateResponseDto[]; total: number; page: number; totalPages: number }> {
+  async findAll(page: number = 1, limit: number = 10, excludeUserId?: string): Promise<{ dates: DateResponseDto[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
+    
+    // Build query - exclude user's own dates if userId provided
+    // Use $nin to exclude both ObjectId and string versions of the userId
+    const excludeObjectId = excludeUserId ? new Types.ObjectId(excludeUserId) : null;
+    const query = excludeUserId ? { 
+      ownerId: { 
+        $nin: [excludeUserId, excludeObjectId] 
+      } 
+    } : {};
+    
+    this.logger.log(`findAll - excludeUserId string: ${excludeUserId || 'undefined'}, page: ${page}, limit: ${limit}`);
+    this.logger.log(`findAll - excludeObjectId: ${excludeObjectId ? excludeObjectId.toString() : 'null'}`);
+    this.logger.log(`findAll - MongoDB query: ${JSON.stringify(query, (key, value) => {
+      if (Array.isArray(value)) {
+        return value.map(v => v instanceof Types.ObjectId ? v.toString() : v);
+      }
+      return value instanceof Types.ObjectId ? value.toString() : value;
+    })}`);
     
     const [dates, total] = await Promise.all([
       this.dateModel
-        .find()
+        .find(query)
         .populate('ownerId', 'fullname avatarUrl')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
-      this.dateModel.countDocuments().exec(),
+      this.dateModel.countDocuments(query).exec(),
     ]);
+
+    // Log the ownerId of each date before processing
+    dates.forEach((date, index) => {
+      this.logger.log(`findAll - Date ${index + 1} ownerId: ${date.ownerId} (type: ${typeof date.ownerId})`);
+    });
 
     const datesWithRequestCounts = await Promise.all(
       dates.map(async (date) => {
@@ -67,6 +92,8 @@ export class DatesService {
         return this.formatDateResponse(date, pendingCount);
       })
     );
+
+    this.logger.log(`findAll - Found ${dates.length} dates, total: ${total}`);
 
     return {
       dates: datesWithRequestCounts,
@@ -226,6 +253,8 @@ export class DatesService {
       })),
       status: date.status,
       pendingRequestsCount,
+      budgetAmount: date.budgetAmount,
+      costSplitPercentage: date.costSplitPercentage,
       createdAt: (date.createdAt as Date).toISOString(),
       updatedAt: (date.updatedAt as Date).toISOString(),
     };
