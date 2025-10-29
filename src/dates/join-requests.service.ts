@@ -135,7 +135,11 @@ export class JoinRequestsService {
       throw new NotFoundException('Join request not found');
     }
 
-    if (request.dateId.toString() !== dateId) {
+    // Ensure comparison works whether dateId is populated document or ObjectId
+    const requestDateId: string = (request.dateId as any)?._id
+      ? (request.dateId as any)._id.toString()
+      : (request.dateId as any).toString();
+    if (requestDateId !== dateId) {
       throw new BadRequestException('Request does not belong to this date');
     }
 
@@ -188,7 +192,11 @@ export class JoinRequestsService {
       throw new NotFoundException('Join request not found');
     }
 
-    if (request.dateId.toString() !== dateId) {
+    // Ensure comparison works whether dateId is populated document or ObjectId
+    const requestDateId2: string = (request.dateId as any)?._id
+      ? (request.dateId as any)._id.toString()
+      : (request.dateId as any).toString();
+    if (requestDateId2 !== dateId) {
       throw new BadRequestException('Request does not belong to this date');
     }
 
