@@ -46,17 +46,29 @@ export class DatesService {
     return this.formatDateResponse(savedDate);
   }
 
-  async findAll(page: number = 1, limit: number = 10, excludeUserId?: string): Promise<{ dates: DateResponseDto[]; total: number; page: number; totalPages: number }> {
+  async findAll(page: number = 1, limit: number = 10, excludeUserId?: string, dateIso?: string): Promise<{ dates: DateResponseDto[]; total: number; page: number; totalPages: number }> {
     const skip = (page - 1) * limit;
-    
+
     // Build query - exclude user's own dates if userId provided
     // Use $nin to exclude both ObjectId and string versions of the userId
     const excludeObjectId = excludeUserId ? new Types.ObjectId(excludeUserId) : null;
-    const query = excludeUserId ? { 
-      ownerId: { 
-        $nin: [excludeUserId, excludeObjectId] 
-      } 
-    } : {};
+
+    let dateFilter: any = {};
+    if (dateIso) {
+      const dt = new Date(dateIso);
+      if (isNaN(dt.getTime())) {
+        throw new BadRequestException('Invalid date. Use full ISO datetime.');
+      }
+      const dayStart = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), 0, 0, 0, 0));
+      const dayEnd = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate() + 1, 0, 0, 0, 0));
+      this.logger.log(`findAll - dateIso: ${dateIso}, dayStart(UTC): ${dayStart.toISOString()}, dayEnd(UTC): ${dayEnd.toISOString()}`);
+      dateFilter = { startDateTime: { $gte: dayStart, $lt: dayEnd } };
+    }
+
+    const query = {
+      ...(excludeUserId ? { ownerId: { $nin: [excludeUserId, excludeObjectId] } } : {}),
+      ...dateFilter,
+    } as any;
     
     this.logger.log(`findAll - excludeUserId string: ${excludeUserId || 'undefined'}, page: ${page}, limit: ${limit}`);
     this.logger.log(`findAll - excludeObjectId: ${excludeObjectId ? excludeObjectId.toString() : 'null'}`);
@@ -198,6 +210,52 @@ export class DatesService {
     
     // Delete the date
     await this.dateModel.findByIdAndDelete(id).exec();
+  }
+
+  async getCountsByDates(datesIso: string[], excludeUserId?: string): Promise<{ results: { date: string; count: number }[] }> {
+    if (!Array.isArray(datesIso) || datesIso.length === 0) {
+      throw new BadRequestException('dates must be a non-empty array');
+    }
+
+    const parsed = datesIso.map(d => {
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) throw new BadRequestException(`Invalid ISO datetime: ${d}`);
+      return dt;
+    });
+
+    const dayKeys = parsed.map(dt => `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`);
+
+    const minStart = new Date(Math.min(...parsed.map(dt => Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()))));
+    const maxEnd = new Date(Math.max(...parsed.map(dt => Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()+1))));
+
+    this.logger.log(`getCountsByDates - input dates: ${datesIso.join(', ')}`);
+    this.logger.log(`getCountsByDates - computed day keys: ${dayKeys.join(', ')}`);
+    this.logger.log(`getCountsByDates - window UTC: ${minStart.toISOString()} -> ${maxEnd.toISOString()}`);
+
+    const match: any = { startDateTime: { $gte: minStart, $lt: maxEnd } };
+    if (excludeUserId) {
+      match.ownerId = { $nin: [excludeUserId, new Types.ObjectId(excludeUserId)] };
+    }
+
+    this.logger.log(`getCountsByDates - MongoDB match query: ${JSON.stringify(match)}`);
+
+    const agg = await this.dateModel.aggregate([
+      { $match: match },
+      { $group: {
+          _id: { $dateToString: { date: '$startDateTime', format: '%Y-%m-%d', timezone: 'UTC' } },
+          count: { $sum: 1 }
+        }
+      },
+    ]).exec();
+
+    this.logger.log(`getCountsByDates - aggregation results: ${JSON.stringify(agg)}`);
+
+    const countByDay = new Map<string, number>(agg.map((r: any) => [r._id as string, r.count as number]));
+
+    const results = datesIso.map((orig, i) => ({ date: orig, count: countByDay.get(dayKeys[i]) ?? 0 }));
+    this.logger.log(`getCountsByDates - computed counts for ${results.length} inputs: ${JSON.stringify(results)}`);
+
+    return { results };
   }
 
   async findUserDates(userId: string, page: number = 1, limit: number = 10): Promise<{ dates: DateResponseDto[]; total: number; page: number; totalPages: number }> {

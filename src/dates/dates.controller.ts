@@ -20,6 +20,7 @@ import { DatesService } from './dates.service';
 import { CreateDateDto } from './dto/create-date.dto';
 import { UpdateDateDto } from './dto/update-date.dto';
 import { DateResponseDto } from './dto/date-response.dto';
+import { DatesSummaryRequestDto } from './dto/dates-summary-request.dto';
 import { JoinRequestsService } from './join-requests.service';
 
 @ApiTags('dates')
@@ -59,6 +60,7 @@ export class DatesController {
   @ApiOperation({ summary: 'Get all public dates with pagination (excludes authenticated user\'s dates if token provided)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiQuery({ name: 'date', required: false, type: String, description: 'Full ISO datetime; filters by that UTC day' })
   @ApiBearerAuth('JWT-auth')
   @ApiResponse({
     status: 200,
@@ -77,6 +79,7 @@ export class DatesController {
     @Request() req,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('date') date?: string,
   ) {
     // Log request details
     this.logger.log(`GET /dates - Request received - has user: ${!!req.user}`);
@@ -90,11 +93,21 @@ export class DatesController {
     
     this.logger.log(`GET /dates - Extracted userId: ${userId || 'undefined (no authentication)'}`);
     
-    const result = await this.datesService.findAll(page, limit, userId);
+    const result = await this.datesService.findAll(page, limit, userId, date);
     
     this.logger.log(`GET /dates - Returning ${result.dates.length} dates (total: ${result.total})`);
     
     return result;
+  }
+
+  @Post('summary')
+  @UseGuards(OptionalJwtGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get counts of dates per provided UTC day' })
+  @ApiResponse({ status: 200, description: 'Counts computed' })
+  async summarizeByDates(@Body() body: DatesSummaryRequestDto, @Request() req) {
+    const userId = req.user ? (req.user?._id ?? req.user?.id ?? req.user?.userId)?.toString() : undefined;
+    return this.datesService.getCountsByDates(body.dates, userId);
   }
 
   @Get('my-requests')
