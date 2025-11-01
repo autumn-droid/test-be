@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DatesController } from './dates.controller';
 import { JoinRequestsController } from './join-requests.controller';
@@ -7,6 +7,7 @@ import { JoinRequestsService } from './join-requests.service';
 import { DateEntity, DateSchema } from './schemas/date.schema';
 import { JoinRequest, JoinRequestSchema } from './schemas/join-request.schema';
 import { AuthModule } from '../auth/auth.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: JoinRequest.name, schema: JoinRequestSchema },
     ]),
     AuthModule,
+    forwardRef(() => ChatModule),
   ],
   controllers: [DatesController, JoinRequestsController],
   providers: [DatesService, JoinRequestsService],

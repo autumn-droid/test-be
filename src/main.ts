@@ -36,6 +36,7 @@ async function bootstrap() {
     .addTag('users')
     .addTag('dates')
     .addTag('join-requests')
+    .addTag('chat')
     .addBearerAuth(
       {
         type: 'http',

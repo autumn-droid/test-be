@@ -8,6 +8,7 @@ import { ImagesModule } from './images/images.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { DatesModule } from './dates/dates.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { DatesModule } from './dates/dates.module';
     ImagesModule,
     UsersModule,
     AuthModule,
+    ChatModule,
     DatesModule,
   ],
   controllers: [AppController],

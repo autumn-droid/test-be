@@ -5,12 +5,14 @@ import { DateEntity, DateDocument } from './schemas/date.schema';
 import { JoinRequest, JoinRequestDocument } from './schemas/join-request.schema';
 import { CreateJoinRequestDto } from './dto/create-join-request.dto';
 import { JoinRequestResponseDto } from './dto/join-request-response.dto';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class JoinRequestsService {
   constructor(
     @InjectModel(JoinRequest.name) private joinRequestModel: Model<JoinRequestDocument>,
     @InjectModel(DateEntity.name) private dateModel: Model<DateDocument>,
+    private chatService: ChatService,
   ) {}
 
   async create(dateId: string, createJoinRequestDto: CreateJoinRequestDto, requesterId: string): Promise<JoinRequestResponseDto> {
@@ -48,6 +50,32 @@ export class JoinRequestsService {
     });
 
     const savedRequest = await joinRequest.save();
+
+    // Create or find conversation between requester and date owner
+    try {
+      console.log('=== Join Request Conversation Creation ===');
+      console.log('requesterId:', requesterId);
+      console.log('date.ownerId:', date.ownerId.toString());
+      
+      const conversation = await this.chatService.findOrCreateConversation(
+        requesterId,
+        date.ownerId.toString(),
+      );
+
+      // Initialize message limit for requester (only if new conversation)
+      const conversationId = conversation._id ? conversation._id.toString() : (conversation as any).id;
+      console.log('conversationId:', conversationId);
+      
+      await this.chatService.initializeMessageLimit(
+        conversationId,
+        requesterId,
+      );
+      
+      console.log('=== End Join Request Conversation Creation ===');
+    } catch (error) {
+      // Log error but don't fail the join request creation
+      console.error('Failed to create conversation:', error);
+    }
 
     // Populate required refs before formatting the response
     const populated = await this.joinRequestModel
