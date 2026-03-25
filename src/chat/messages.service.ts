@@ -5,10 +5,13 @@ import { Message, MessageDocument } from './schemas/message.schema';
 import { MessageLimit, MessageLimitDocument } from './schemas/message-limit.schema';
 import { Conversation, ConversationDocument } from './schemas/conversation.schema';
 import { MessageResponseDto } from './dto/message-response.dto';
+import { MessageLimitResponseDto } from './dto/message-limit-response.dto';
 import { ConversationsService } from './conversations.service';
 
 @Injectable()
 export class MessagesService {
+  private limitUpdateEmitter?: (conversationId: string) => Promise<void>;
+
   constructor(
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(MessageLimit.name) private messageLimitModel: Model<MessageLimitDocument>,
@@ -16,10 +19,15 @@ export class MessagesService {
     private conversationsService: ConversationsService,
   ) {}
 
+  // Method to set the emitter callback (called by ChatService after initialization)
+  setLimitUpdateEmitter(emitter: (conversationId: string) => Promise<void>) {
+    this.limitUpdateEmitter = emitter;
+  }
+
   async createMessage(
     conversationId: string,
     senderId: string | null,
-    type: 'text' | 'image' | 'system',
+    type: 'text' | 'image' | 'system' | 'voice',
     content: string,
     metadata?: Record<string, any>,
   ): Promise<MessageResponseDto> {
@@ -134,6 +142,28 @@ export class MessagesService {
       { conversationId },
       { limitLifted: true }
     ).exec();
+
+    // Emit event to all participants that the limit has been lifted
+    if (this.limitUpdateEmitter) {
+      await this.limitUpdateEmitter(conversationId);
+    }
+  }
+
+  async emitLimitUpdate(conversationId: string): Promise<void> {
+    if (!this.limitUpdateEmitter) {
+      return;
+    }
+
+    await this.limitUpdateEmitter(conversationId);
+  }
+
+  async getLimitStatusForEmission(conversationId: string, userId: string): Promise<MessageLimitResponseDto & { conversationId: string; userId: string }> {
+    const limitStatus = await this.getMessageLimitStatus(conversationId, userId);
+    return {
+      conversationId,
+      userId,
+      ...limitStatus,
+    };
   }
 
   async initializeMessageLimit(conversationId: string, requesterId: string): Promise<void> {
@@ -158,10 +188,70 @@ export class MessagesService {
     }
   }
 
+  async getMessageLimitStatus(conversationId: string, userId: string): Promise<MessageLimitResponseDto> {
+    // Verify user has access to conversation
+    await this.conversationsService.getConversationById(conversationId, userId);
+
+    const limit = await this.messageLimitModel.findOne({ conversationId }).exec();
+
+    // If no limit exists, user can send unlimited messages
+    if (!limit) {
+      return {
+        hasLimit: false,
+        isRequester: false,
+        messageCount: 0,
+        remainingMessages: null, // null means unlimited
+        limitLifted: true,
+        canSendMessage: true,
+      };
+    }
+
+    const isRequester = limit.requesterId.toString() === userId;
+    const limitLifted = limit.limitLifted;
+    const messageCount = limit.messageCount;
+    
+    // If limit is lifted, user can send unlimited messages
+    if (limitLifted) {
+      return {
+        hasLimit: false,
+        isRequester,
+        messageCount,
+        remainingMessages: null, // null means unlimited
+        limitLifted: true,
+        canSendMessage: true,
+      };
+    }
+
+    // If user is not the requester, they can send unlimited messages
+    if (!isRequester) {
+      return {
+        hasLimit: false,
+        isRequester: false,
+        messageCount: 0,
+        remainingMessages: null, // null means unlimited
+        limitLifted: false,
+        canSendMessage: true,
+      };
+    }
+
+    // User is requester and limit is active
+    const remainingMessages = Math.max(0, 5 - messageCount);
+    const canSendMessage = messageCount < 5;
+
+    return {
+      hasLimit: true,
+      isRequester: true,
+      messageCount,
+      remainingMessages,
+      limitLifted: false,
+      canSendMessage,
+    };
+  }
+
   async validateAndSendMessage(
     conversationId: string,
     senderId: string,
-    type: 'text' | 'image' | 'system',
+    type: 'text' | 'image' | 'system' | 'voice',
     content: string,
     metadata?: Record<string, any>,
   ): Promise<MessageResponseDto> {
@@ -178,13 +268,12 @@ export class MessagesService {
     const message = await this.createMessage(conversationId, senderId, type, content, metadata);
 
     // Increment message count for non-system messages
+    let limitWasLifted = false;
     if (type !== 'system') {
       await this.incrementMessageCount(conversationId, senderId);
-    }
 
-    // Check if this is a message from the other participant (lifting the limit)
-    // Only lift limit if it hasn't been lifted already
-    if (type !== 'system') {
+      // Check if this is a message from the other participant (lifting the limit)
+      // Only lift limit if it hasn't been lifted already
       const limit = await this.messageLimitModel.findOne({ conversationId }).exec();
       if (limit && !limit.limitLifted) {
         const conversation = await this.conversationModel.findById(conversationId).exec();
@@ -193,7 +282,16 @@ export class MessagesService {
           // If sender is NOT the requester (i.e., the date owner is responding), lift the limit
           if (!isRequester) {
             await this.liftMessageLimit(conversationId);
+            limitWasLifted = true;
           }
+        }
+      }
+
+      // Emit limit update event if message count changed (for requester to see remaining messages)
+      if (!limitWasLifted && limit && limit.requesterId.toString() === senderId) {
+        // Emit update for all participants
+        if (this.limitUpdateEmitter) {
+          await this.limitUpdateEmitter(conversationId);
         }
       }
     }

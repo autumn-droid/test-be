@@ -26,12 +26,18 @@ async function bootstrap() {
     prefix: '/storage/images/',
   });
 
+  // Android Digital Asset Links (App Links)
+  app.useStaticAssets(join(__dirname, '..', 'storage', '.well-known'), {
+    prefix: '/.well-known/',
+  });
+
   const config = new DocumentBuilder()
     .setTitle('Datedi Dating App API')
     .setDescription('API for managing dating app with dates, join requests, themes, and image uploads')
     .setVersion('1.0')
     .addTag('themes')
     .addTag('images')
+    .addTag('voice')
     .addTag('auth')
     .addTag('users')
     .addTag('dates')
@@ -53,7 +59,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(`Swagger documentation available at: http://localhost:${port}/api`);

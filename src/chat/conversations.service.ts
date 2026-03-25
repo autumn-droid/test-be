@@ -83,6 +83,23 @@ export class ConversationsService {
     return conversation;
   }
 
+  async getConversationByIdFormatted(conversationId: string, userId: string): Promise<ConversationResponseDto> {
+    // Verify user has access to conversation
+    await this.getConversationById(conversationId, userId);
+
+    // Get conversation with populated participants
+    const conversation = await this.conversationModel
+      .findById(conversationId)
+      .populate('participants', 'fullname avatarUrl')
+      .exec();
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    return this.formatConversationResponse(conversation);
+  }
+
   private formatConversationResponse(conversation: ConversationDocument): ConversationResponseDto {
     const participantsAny: any = conversation.participants as any;
     

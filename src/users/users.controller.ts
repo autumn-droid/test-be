@@ -9,6 +9,8 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Param,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -20,8 +22,6 @@ import { ImagesService } from '../images/images.service';
 
 @ApiTags('users')
 @Controller('users')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
@@ -29,6 +29,8 @@ export class UsersController {
   ) {}
 
   @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({
     status: 200,
@@ -56,7 +58,37 @@ export class UsersController {
     };
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get user info by ID (public)' })
+  @ApiResponse({
+    status: 200,
+    description: 'User info retrieved successfully',
+    type: UserResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getUserById(@Param('id') id: string): Promise<UserResponseDto> {
+    const user = await this.usersService.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      _id: (user._id as any).toString(),
+      nationCode: user.nationCode,
+      phoneNumber: user.phoneNumber,
+      fullname: user.fullname,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt || new Date(),
+      updatedAt: user.updatedAt || new Date(),
+    };
+  }
+
   @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update user profile' })
   @ApiResponse({
     status: 200,
@@ -89,6 +121,8 @@ export class UsersController {
   }
 
   @Post('avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @UseInterceptors(FileInterceptor('avatar'))
   @ApiOperation({ summary: 'Upload user avatar' })
   @ApiConsumes('multipart/form-data')

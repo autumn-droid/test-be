@@ -6,7 +6,7 @@ export class MessageResponseDto {
     fullname: string;
     avatarUrl?: string;
   } | null;
-  type: 'text' | 'image' | 'system';
+  type: 'text' | 'image' | 'system' | 'voice';
   content: string;
   metadata: Record<string, any>;
   readBy: string[];

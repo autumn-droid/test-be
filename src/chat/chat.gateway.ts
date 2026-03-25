@@ -13,7 +13,7 @@ import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -27,6 +27,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   server: Server;
 
   constructor(
+    @Inject(forwardRef(() => ChatService))
     private chatService: ChatService,
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -123,13 +124,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     try {
       const userId = await this.authenticateSocket(client);
 
+      // Merge images array into metadata so multiple images can be sent with one message
+      const mergedMetadata = {
+        ...(sendMessageDto.metadata || {}),
+        ...(sendMessageDto.images && sendMessageDto.images.length > 0 ? { images: sendMessageDto.images } : {}),
+      };
+
       // Send message using the service
       const message = await this.chatService.sendMessage(
         sendMessageDto.conversationId,
         userId,
         sendMessageDto.type,
         sendMessageDto.content,
-        sendMessageDto.metadata,
+        mergedMetadata,
       );
 
       // Notify sender of successful delivery

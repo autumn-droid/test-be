@@ -13,10 +13,10 @@ export class Message {
 
   @Prop({ 
     type: String, 
-    enum: ['text', 'image', 'system'], 
+    enum: ['text', 'image', 'system', 'voice'], 
     required: true 
   })
-  type: 'text' | 'image' | 'system';
+  type: 'text' | 'image' | 'system' | 'voice';
 
   @Prop({ required: true })
   content: string;
