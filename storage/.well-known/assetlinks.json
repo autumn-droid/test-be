@@ -1,0 +1,9 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "win.abcxyz.igaming.nigeria",
+    "sha256_cert_fingerprints":
+    ["DC:61:66:91:EF:27:87:B9:F2:4B:33:96:A3:21:60:6E:4C:2A:65:00:C2:52:8D:D5:90:4B:57:9A:99:3F:EE:4C"]
+  }
+}]

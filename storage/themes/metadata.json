@@ -1,0 +1,65 @@
+{
+  "currentVersion": "10",
+  "versions": [
+    {
+      "version": "1",
+      "releaseDate": "2026-01-23T04:29:40.507Z",
+      "size": 322625,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "2",
+      "releaseDate": "2026-01-23T04:37:06.626Z",
+      "size": 322628,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "3",
+      "releaseDate": "2026-02-06T04:49:50.960Z",
+      "size": 804401,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "4",
+      "releaseDate": "2026-02-06T04:49:52.352Z",
+      "size": 804401,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "5",
+      "releaseDate": "2026-02-08T04:37:07.468Z",
+      "size": 809279,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "6",
+      "releaseDate": "2026-02-12T08:13:49.613Z",
+      "size": 861738,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "7",
+      "releaseDate": "2026-02-13T07:17:14.069Z",
+      "size": 861760,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "8",
+      "releaseDate": "2026-02-24T16:32:22.217Z",
+      "size": 865218,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "9",
+      "releaseDate": "2026-02-24T16:37:56.577Z",
+      "size": 865282,
+      "changelog": "Updated icons and colors"
+    },
+    {
+      "version": "10",
+      "releaseDate": "2026-02-28T14:46:38.175Z",
+      "size": 1748267,
+      "changelog": "Updated icons and colors"
+    }
+  ]
+}
