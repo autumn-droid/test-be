@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -16,6 +18,9 @@ async function bootstrap() {
     forbidNonWhitelisted: true,
     transform: true,
   }));
+
+  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
   // Log MongoDB connection status
   console.log('Connecting to MongoDB Atlas...');
