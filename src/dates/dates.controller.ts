@@ -1,16 +1,17 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  UseGuards, 
-  Request, 
-  Query, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  Query,
   ParseIntPipe,
   DefaultValuePipe,
+  BadRequestException,
   Logger
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
@@ -20,6 +21,7 @@ import { DatesService } from './dates.service';
 import { CreateDateDto } from './dto/create-date.dto';
 import { UpdateDateDto } from './dto/update-date.dto';
 import { DateResponseDto } from './dto/date-response.dto';
+import { NearbyDateResponseDto } from './dto/nearby-date-response.dto';
 import { DatesSummaryRequestDto } from './dto/dates-summary-request.dto';
 import { JoinRequestsService } from './join-requests.service';
 
@@ -169,6 +171,43 @@ export class DatesController {
   ) {
     const userId: string = (req.user?._id ?? req.user?.id ?? req.user?.userId)?.toString();
     return this.datesService.findUserDates(userId, page, limit);
+  }
+
+  @Get('nearby')
+  @UseGuards(OptionalJwtGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get dates near a location, sorted by distance (excludes authenticated user\'s own dates if token provided)' })
+  @ApiQuery({ name: 'latitude', required: true, type: Number, description: 'User\'s current latitude' })
+  @ApiQuery({ name: 'longitude', required: true, type: Number, description: 'User\'s current longitude' })
+  @ApiQuery({ name: 'radius', required: false, type: Number, description: 'Search radius in kilometers (default: 10)' })
+  @ApiQuery({ name: 'date', required: false, type: String, description: 'Full ISO datetime; filters by that UTC day' })
+  @ApiResponse({
+    status: 200,
+    description: 'Nearby dates retrieved successfully, sorted by distance ascending',
+    type: [NearbyDateResponseDto],
+  })
+  @ApiResponse({ status: 400, description: 'Missing or invalid latitude/longitude' })
+  async findNearby(
+    @Request() req,
+    @Query('latitude') latStr: string,
+    @Query('longitude') lonStr: string,
+    @Query('radius') radiusStr?: string,
+    @Query('date') date?: string,
+  ): Promise<NearbyDateResponseDto[]> {
+    const latitude = parseFloat(latStr);
+    const longitude = parseFloat(lonStr);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      throw new BadRequestException('latitude and longitude are required and must be valid numbers');
+    }
+
+    const radius = radiusStr !== undefined ? parseFloat(radiusStr) : 10;
+    if (isNaN(radius) || radius <= 0) {
+      throw new BadRequestException('radius must be a positive number');
+    }
+
+    const userId = req.user ? (req.user?._id ?? req.user?.id ?? req.user?.userId)?.toString() : undefined;
+    return this.datesService.findNearby(latitude, longitude, radius, userId, date);
   }
 
   @Get(':id')

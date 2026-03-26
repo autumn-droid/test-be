@@ -6,6 +6,7 @@ import { JoinRequest, JoinRequestDocument } from './schemas/join-request.schema'
 import { CreateDateDto } from './dto/create-date.dto';
 import { UpdateDateDto } from './dto/update-date.dto';
 import { DateResponseDto } from './dto/date-response.dto';
+import { NearbyDateResponseDto } from './dto/nearby-date-response.dto';
 
 @Injectable()
 export class DatesService {
@@ -288,6 +289,76 @@ export class DatesService {
       page,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async findNearby(
+    latitude: number,
+    longitude: number,
+    radiusKm: number = 10,
+    excludeUserId?: string,
+    dateIso?: string,
+  ): Promise<NearbyDateResponseDto[]> {
+    const excludeObjectId = excludeUserId ? new Types.ObjectId(excludeUserId) : null;
+
+    let dateFilter: any = {};
+    if (dateIso) {
+      const dt = new Date(dateIso);
+      if (isNaN(dt.getTime())) {
+        throw new BadRequestException('Invalid date. Use full ISO datetime.');
+      }
+      const dayStart = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), 0, 0, 0, 0));
+      const dayEnd = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate() + 1, 0, 0, 0, 0));
+      dateFilter = { startDateTime: { $gte: dayStart, $lt: dayEnd } };
+    }
+
+    const query: any = {
+      'locations.0': { $exists: true },
+      ...(excludeUserId ? { ownerId: { $nin: [excludeUserId, excludeObjectId] } } : {}),
+      ...dateFilter,
+    };
+
+    const dates = await this.dateModel
+      .find(query)
+      .populate('ownerId', 'fullname avatarUrl')
+      .exec();
+
+    const results: NearbyDateResponseDto[] = [];
+
+    for (const date of dates) {
+      const minDistanceKm = Math.min(
+        ...date.locations.map((loc: any) =>
+          this.haversineKm(latitude, longitude, loc.latitude, loc.longitude),
+        ),
+      );
+
+      if (minDistanceKm <= radiusKm) {
+        const pendingCount = await this.joinRequestModel.countDocuments({
+          dateId: date._id,
+          status: 'pending',
+        });
+        results.push({
+          ...this.formatDateResponse(date, pendingCount),
+          distanceKm: Math.round(minDistanceKm * 100) / 100,
+        });
+      }
+    }
+
+    results.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return results;
+  }
+
+  private haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   private formatDateResponse(date: DateDocument, pendingRequestsCount: number = 0): DateResponseDto {
